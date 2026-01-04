@@ -3,122 +3,156 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M5 Landscape Player</title>
+<title>M5 Neon Player</title>
 <style>
-  /* 全体設定 */
-  * { box-sizing: border-box; touch-action: manipulation; }
+  /* === カラーパレット定義 === */
+  :root {
+    --bg-main: #080005;   /* ほんのり赤みのある漆黒 */
+    --bg-panel: #1a0510;  /* パネル背景（暗いピンク黒） */
+    --neon-pink: #ff007f; /* メインのネオンピンク */
+    --neon-hot: #ff1493;  /* 明るいホットピンク */
+    --text-main: #ffddee; /* 薄いピンク白テキスト */
+    --text-sub: #b38896;  /* くすんだピンクテキスト */
+    --glow-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink); /* 発光エフェクト */
+  }
+
+  /* === 基本設定 === */
+  * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   body {
-    background-color: #000; color: #eee; font-family: sans-serif;
+    background-color: var(--bg-main);
+    background-image: radial-gradient(circle at center, #220011 0%, var(--bg-main) 70%); /* うっすら中央を明るく */
+    color: var(--text-main);
+    font-family: 'Helvetica Neue', Arial, sans-serif; /* 少しスタイリッシュなフォントへ */
     margin: 0; padding: 0;
-    height: 100dvh; width: 100vw;
-    overflow: hidden;
+    height: 100dvh; width: 100vw; overflow: hidden;
   }
+  
+  #container { display: flex; width: 100%; height: 100%; flex-direction: column; padding: 15px; gap: 15px; }
 
-  /* メインコンテナ */
-  #container {
-    display: flex;
-    width: 100%; height: 100%;
-    /* デフォルト（縦画面）は縦並び */
-    flex-direction: column; 
-    padding: 10px; gap: 10px;
-  }
-
-  /* 動画エリア */
+  /* === 動画エリア === */
   #video-area {
     background: #000;
-    border: 1px solid #333; border-radius: 8px;
-    display: flex; justify-content: center; align-items: center;
-    position: relative;
-    /* 縦画面時は動画エリアを優先的に確保しつつ、コントローラー分も残す */
-    flex: 1; 
-    min-height: 0;
-  }
-  video { width: 100%; height: 100%; object-fit: contain; }
-
-  /* コントローラーエリア */
-  #controls {
-    background: #1a1a1a;
+    border: 2px solid var(--neon-pink); /* ピンクの枠線 */
+    box-shadow: 0 0 15px var(--neon-pink) inset; /* 内側への発光 */
     border-radius: 12px;
-    padding: 10px;
-    display: flex; flex-direction: column; gap: 10px;
-    overflow-y: auto; /* 溢れたらスクロール */
-    /* 縦画面時の高さ確保 */
-    flex: 0 0 auto;
-    max-height: 40vh; 
+    display: flex; justify-content: center; align-items: center;
+    position: relative; flex: 1; min-height: 0;
+    overflow: hidden;
+  }
+  video { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+
+  /* === 操作パネル === */
+  #controls {
+    background: var(--bg-panel);
+    border: 1px solid #441025;
+    box-shadow: 0 0 20px rgba(255, 0, 127, 0.2); /* 全体のふわっとした光 */
+    border-radius: 16px; padding: 15px;
+    display: flex; flex-direction: column; gap: 12px;
+    overflow-y: auto; flex: 0 0 auto; max-height: 45vh;
   }
 
-  /* ======== 横画面（ランドスケープ）用レイアウト ======== */
+  /* 横画面レイアウト */
   @media (orientation: landscape) {
-    #container {
-      flex-direction: row; /* 横並びにする */
-      padding: 0; gap: 0;
-    }
-
-    #video-area {
-      flex: 1; /* 残りのスペース全部動画 */
-      border-radius: 0; border: none;
-    }
-
-    #controls {
-      width: 300px; /* 右側の固定幅 */
-      height: 100%;
-      max-height: none;
-      border-radius: 0;
-      border-left: 1px solid #333;
-      padding: 15px;
-    }
+    #container { flex-direction: row; padding: 0; gap: 0; }
+    #video-area { flex: 1; border: none; border-radius: 0; box-shadow: none; }
+    #controls { width: 320px; height: 100%; max-height: none; border-radius: 0; border-left: 2px solid var(--neon-pink); padding: 20px; background: rgba(26, 5, 16, 0.95); }
   }
-  /* ==================================================== */
 
-  /* ボタン・UIデザイン */
-  .btn-top-group { display: flex; gap: 5px; }
+  /* === UIパーツ：ボタン === */
+  .btn-top-group { display: flex; gap: 8px; }
+
+  /* 共通ボタンデザイン（ネオン風） */
+  .btn-base {
+    border-radius: 8px; font-weight: bold; text-align: center; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+    padding: 12px 0; 
+    border: 1px solid var(--neon-pink);
+    background: linear-gradient(145deg, #330a1a, #1a0510);
+    color: var(--neon-hot);
+    text-shadow: 0 0 5px var(--neon-pink);
+    box-shadow: inset 0 0 10px rgba(255,0,127,0.3);
+    transition: all 0.2s ease;
+  }
+  .btn-base:active {
+    background: var(--neon-pink);
+    color: #fff;
+    box-shadow: var(--glow-shadow);
+  }
+
+  /* 個別ボタン設定 */
+  #btn-fullscreen { width: 50px; font-size: 22px; flex: 0 0 auto; }
   
-  #ble-connect {
-    flex: 1; background: #ff5722; color: white; padding: 12px;
-    border-radius: 6px; font-weight: bold; text-align: center; cursor: pointer;
-    font-size: 14px; display: flex; align-items: center; justify-content: center;
-  }
-  .connected-btn { background: #4caf50 !important; pointer-events: none; }
-
-  .btn-file {
-    flex: 1; background: #007bff; color: white; padding: 12px;
-    border-radius: 6px; font-weight: bold; text-align: center; cursor: pointer;
-    font-size: 14px; overflow: hidden; white-space: nowrap;
-  }
+  #ble-connect { flex: 1; background: linear-gradient(135deg, var(--neon-pink), #ff55aadd); color: white; border: none; text-shadow: none;}
+  .connected-btn { background: linear-gradient(135deg, #00b09b, #96c93d) !important; box-shadow: 0 0 15px #00b09b !important; pointer-events: none; }
+  
+  .btn-file { flex: 1; background: linear-gradient(135deg, #aa00ff, #5500aa); color: white; border: none; text-shadow: none; overflow: hidden; white-space: nowrap; }
   input[type="file"] { display: none; }
 
-  /* スキップボタン（グリッド） */
+  /* スキップボタン */
   .skip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .btn-skip {
-    background: #333; color: #fff; border: 1px solid #555; border-radius: 4px;
-    padding: 12px 0; font-size: 14px; cursor: pointer;
+    background: rgba(51, 10, 26, 0.8); color: var(--text-main);
+    border: 1px solid #551430; border-radius: 6px;
+    padding: 10px 0; font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
   }
-  .btn-skip:active { background: #555; }
+  .btn-skip:active { background: var(--neon-pink); color: white; box-shadow: 0 0 10px var(--neon-pink); border-color: var(--neon-pink); }
 
-  /* メーター */
-  .bar-bg { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
-  #bar { height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00); transition: width 0.1s; }
+  /* === UIパーツ：入力・メーター === */
+  select {
+    width: 100%; padding: 12px; 
+    background: var(--bg-main); color: var(--neon-hot);
+    border: 1px solid var(--neon-pink); border-radius: 8px;
+    font-size: 1rem; font-weight: bold;
+    box-shadow: inset 0 0 5px var(--neon-pink);
+    outline: none;
+  }
+  option { background: var(--bg-main); color: var(--neon-hot); }
 
-  /* スライダー等 */
-  select { width: 100%; padding: 10px; background: #333; color: white; border: none; border-radius: 5px; margin-bottom: 5px; }
-  .slider-row { margin-top: 10px; }
-  .label-row { display: flex; justify-content: space-between; font-size: 12px; color: #aaa; margin-bottom: 2px; }
-  input[type="range"] { width: 100%; margin: 0; height: 30px; }
+  /* メーター（妖艶グラデーション） */
+  .bar-bg { width: 100%; height: 14px; background: #2a0a1a; border-radius: 7px; overflow: hidden; margin-top: 5px; box-shadow: inset 0 0 5px #000; border: 1px solid #441025; }
+  #bar {
+    height: 100%; width: 0%;
+    /* ピンク→紫→青緑のエッチなグラデーション */
+    background: linear-gradient(90deg, var(--neon-pink) 0%, #aa00ff 60%, #00ffff 100%);
+    box-shadow: 0 0 15px var(--neon-pink);
+    transition: width 0.08s ease-out;
+  }
 
+  /* スライダー */
+  .label-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-sub); margin-bottom: 4px; font-weight: bold;}
+  .slider-row { margin-top: 12px; }
+  
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 30px; background: transparent; margin: 0;
+  }
+  /* スライダーのレール */
+  input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%; height: 6px; background: #441025; border-radius: 3px; border: 1px solid #551430;
+  }
+  /* スライダーのつまみ（発光ピンク） */
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 22px; width: 22px; border-radius: 50%;
+    background: var(--neon-pink);
+    box-shadow: var(--glow-shadow);
+    margin-top: -9px; /* レールとの位置合わせ */
+    border: 2px solid white;
+  }
 </style>
 </head>
 <body>
 
 <div id="container">
   <div id="video-area">
-    <video id="v" playsinline webkit-playsinline controls loop></video>
+    <video id="v" playsinline webkit-playsinline loop onclick="toggleNativeControls()"></video>
   </div>
 
   <div id="controls">
-    
     <div class="btn-top-group">
-      <div id="ble-connect" onclick="connectBLE()">📡 CONNECT</div>
-      <label class="btn-file">📂 動画選択<input type="file" id="file-input" accept="video/*"></label>
+      <button id="btn-fullscreen" class="btn-base" onclick="toggleFullScreen()">⛶</button>
+      <div id="ble-connect" class="btn-base" onclick="connectBLE()">📡 CONNECT</div>
+      <label class="btn-file btn-base">📂 動画選択<input type="file" id="file-input" accept="video/*"></label>
     </div>
 
     <div style="margin-top:10px;">
@@ -130,7 +164,7 @@
     </div>
 
     <div>
-      <div class="label-row"><span>Motion Level</span></div>
+      <div class="label-row"><span>Motion Level (Accel+Gyro)</span></div>
       <div class="bar-bg"><div id="bar"></div></div>
     </div>
 
@@ -144,69 +178,64 @@
     </div>
 
     <div class="slider-row">
-      <div class="label-row"><span>感度 (Sensitivity)</span><span id="s-val">2.0</span></div>
-      <input type="range" id="sens" min="0.5" max="5.0" step="0.1" value="2.0">
+      <div class="label-row"><span>感度 (Sensitivity)</span><span id="s-val">1.0</span></div>
+      <input type="range" id="sens" min="0.1" max="10.0" step="0.1" value="1.0">
     </div>
-
     <div class="slider-row">
       <div class="label-row"><span>余韻 (Decay)</span><span id="d-val">0.9</span></div>
       <input type="range" id="decay" min="0.5" max="0.99" step="0.01" value="0.9">
     </div>
-
   </div>
 </div>
 
 <script>
-  // === BLE & System ===
+  const video = document.getElementById('v');
+  function toggleFullScreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      const doc = document.documentElement;
+      if (doc.requestFullscreen) doc.requestFullscreen();
+      else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  }
+  function toggleNativeControls() {
+    if (video.hasAttribute("controls")) video.removeAttribute("controls");
+    else video.setAttribute("controls", "controls");
+  }
+
   const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
   const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-  
   const btnConnect = document.getElementById('ble-connect');
   let bluetoothDevice;
-
-  // 全画面化関数
-  function goFullScreen() {
-    const doc = document.documentElement;
-    if (doc.requestFullscreen) { doc.requestFullscreen().catch(e=>{}); }
-    else if (doc.webkitRequestFullscreen) { doc.webkitRequestFullscreen(); }
-  }
 
   async function connectBLE() {
     try {
       btnConnect.innerText = "🔍...";
-      
-      // 1. ペアリング（ポップアップ表示）
       bluetoothDevice = await navigator.bluetooth.requestDevice({
         filters: [{ name: 'M5-AV-Controller' }],
         optionalServices: [SERVICE_UUID]
       });
-
       const server = await bluetoothDevice.gatt.connect();
       const service = await server.getPrimaryService(SERVICE_UUID);
       const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-
       await characteristic.startNotifications();
       characteristic.addEventListener('characteristicvaluechanged', handleData);
-      
-      // 2. 成功したら全画面化
       btnConnect.innerText = "✅ OK";
       btnConnect.classList.add('connected-btn');
-      
-      setTimeout(goFullScreen, 500); // 少し待ってから全画面へ
-
+      toggleFullScreen();
       bluetoothDevice.addEventListener('gattserverdisconnected', () => {
         btnConnect.innerText = "❌ 切断";
         btnConnect.classList.remove('connected-btn');
       });
-
     } catch (error) {
       console.log(error);
-      btnConnect.innerText = "失敗 (再試行)";
+      btnConnect.innerText = "失敗";
+      setTimeout(() => { btnConnect.innerText = "📡 CONNECT"; }, 2000);
     }
   }
 
-  // === Player Logic ===
-  const video = document.getElementById('v');
   const bar = document.getElementById('bar');
   const modeSel = document.getElementById('mode');
   const sensRange = document.getElementById('sens');
@@ -215,19 +244,14 @@
 
   function handleData(event) {
     const value = new TextDecoder().decode(event.target.value);
-    const rawG = parseFloat(value);
-    let motion = Math.abs(rawG - 1.0);
-    if(motion < 0.15) motion = 0; 
-
+    let motion = parseFloat(value);
+    if(motion < 0.05) motion = 0; 
     const decay = parseFloat(decayRange.value);
     const sens = parseFloat(sensRange.value);
     smoothVal = (smoothVal * decay) + (motion * (1.0 - decay) * sens * 10);
-
     let per = Math.min(smoothVal * 20, 100);
     bar.style.width = per + "%";
-
     controlVideo(smoothVal);
-    
     document.getElementById('s-val').innerText = sens;
     document.getElementById('d-val').innerText = decay;
   }
