@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>M5 Hysteresis Player</title>
+<title>M5 TimeStop Player</title>
 <style>
-  /* === デザイン（前回と同じネオンピンクベース） === */
+  /* === デザイン（ネオンピンクベース） === */
   :root { --bg-main: #080005; --bg-panel: #1a0510; --neon-pink: #ff007f; --neon-hot: #ff1493; --text-main: #ffddee; --text-sub: #b38896; --glow-shadow: 0 0 10px var(--neon-pink); }
   * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   body { background: var(--bg-main); color: var(--text-main); font-family: sans-serif; margin: 0; padding: 0; height: 100dvh; width: 100vw; overflow: hidden; }
@@ -17,7 +17,15 @@
     box-shadow: inset 0 0 20px rgba(255,0,127,0.2);
     display: flex; justify-content: center; align-items: center; position: relative; flex: 1; min-height: 0;
   }
+  
+  /* ▼▼▼ ここが重要：CSSで強制的にコントロールを消す魔法 ▼▼▼ */
   video { width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+  
+  /* Chromeの内部コントロールを非表示にする */
+  video::-webkit-media-controls { display: none !important; }
+  video::-webkit-media-controls-play-button { display: none !important; }
+  video::-webkit-media-controls-start-playback-button { display: none !important; }
+  video::-webkit-media-controls-panel { display: none !important; }
 
   #controls {
     background: var(--bg-panel); border: 1px solid #441025; border-radius: 16px; padding: 15px;
@@ -48,11 +56,9 @@
 
   select { width: 100%; padding: 10px; background: var(--bg-main); color: var(--neon-hot); border: 1px solid var(--neon-pink); border-radius: 6px; font-size: 16px; }
 
-  /* メーター */
   .bar-bg { width: 100%; height: 16px; background: #2a0a1a; border-radius: 8px; position: relative; border: 1px solid #441025; overflow: hidden;}
   #bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--neon-pink), #00ffff); transition: width 0.1s; }
   
-  /* 閾値のライン（視覚化） */
   #threshold-line {
     position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; z-index: 10;
     box-shadow: 0 0 5px #fff; left: 20%; pointer-events: none;
@@ -69,7 +75,7 @@
 
 <div id="container">
   <div id="video-area">
-    <video id="v" playsinline webkit-playsinline loop onclick="toggleNativeControls()"></video>
+    <video id="v" playsinline webkit-playsinline loop onclick="forcePlay()"></video>
   </div>
 
   <div id="controls">
@@ -105,10 +111,7 @@
     </div>
 
     <div class="slider-row">
-      <div class="label-row">
-        <span>開始閾値 (Noise Cut)</span>
-        <span id="t-val">20%</span>
-      </div>
+      <div class="label-row"><span style="color:#fff;">開始閾値 (Noise Cut)</span><span id="t-val">20%</span></div>
       <input type="range" id="thresh" min="5" max="80" step="1" value="20" oninput="updateLine()">
     </div>
 
@@ -125,8 +128,14 @@
 </div>
 
 <script>
-  // UI処理
   const video = document.getElementById('v');
+  
+  // ▼▼▼ タップ時は「再生」かつ「速度1」にする（これで再生ボタンが消える） ▼▼▼
+  function forcePlay() {
+    video.play();
+    video.playbackRate = 1.0;
+  }
+
   function toggleFullScreen() {
     const doc = document.documentElement;
     if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -137,12 +146,7 @@
       else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
     }
   }
-  function toggleNativeControls() {
-    if(video.hasAttribute("controls")) video.removeAttribute("controls");
-    else video.setAttribute("controls", "controls");
-  }
 
-  // BLE接続
   const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
   const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
   const btnConnect = document.getElementById('ble-connect');
@@ -163,27 +167,29 @@
       btnConnect.innerText = "✅ OK";
       btnConnect.classList.add('connected-btn');
       toggleFullScreen();
+      
+      // 接続時に一度強制再生して、ブラウザに「再生中」と認識させる
+      video.play().catch(e => console.log("User must interact first"));
+
       bluetoothDevice.addEventListener('gattserverdisconnected', () => {
         btnConnect.innerText = "❌ 切断"; btnConnect.classList.remove('connected-btn');
       });
     } catch (e) { console.log(e); btnConnect.innerText = "失敗"; }
   }
 
-  // === 制御ロジック (Hysteresis) ===
   const bar = document.getElementById('bar');
-  const threshRange = document.getElementById('thresh'); // ノイズカット
-  const sensRange = document.getElementById('sens');     // 感度
-  const decayRange = document.getElementById('decay');   // 余韻
+  const threshRange = document.getElementById('thresh');
+  const sensRange = document.getElementById('sens');
+  const decayRange = document.getElementById('decay');
   
-  // 視覚的なラインの位置を更新
   function updateLine() {
     document.getElementById('threshold-line').style.left = threshRange.value + "%";
     document.getElementById('t-val').innerText = threshRange.value + "%";
   }
-  updateLine(); // 初期実行
+  updateLine();
 
   let smoothVal = 0;
-  let isPlaying = false; // 現在再生中かどうかの状態保持
+  let isMoving = false; // 「動いている」判定フラグ
 
   function handleData(event) {
     const value = new TextDecoder().decode(event.target.value);
@@ -192,66 +198,72 @@
 
     const decay = parseFloat(decayRange.value);
     const sens = parseFloat(sensRange.value);
-
-    // スムージング計算
     smoothVal = (smoothVal * decay) + (motion * (1.0 - decay) * sens * 10);
     
-    // 表示用（0-100%）
     let displayVal = Math.min(smoothVal * 20, 100);
     bar.style.width = displayVal + "%";
-
-    // 数値更新
     document.getElementById('s-val').innerText = sens;
     document.getElementById('d-val').innerText = decay;
 
-    // 動画コントロール実行
     applyControl(displayVal);
   }
 
+  // ▼▼▼ ここが「時止め」のロジック ▼▼▼
   function applyControl(val) {
     const mode = document.getElementById('mode').value;
-    
-    // ユーザー設定の閾値 (0~100)
     const onThreshold = parseFloat(threshRange.value);
-    // OFFになる閾値は、ONより少し低く設定する（これが「粘り」になる）
-    // 例: 開始が30%なら、終了は15%まで下がらないと止まらない
-    const offThreshold = onThreshold * 0.5; 
+    const offThreshold = onThreshold * 0.5;
+
+    // 「停止＝速度0」「再生＝速度1.0」にする
+    // video.pause() は絶対に使わない！
 
     if (mode === 'motion') {
-      if (!isPlaying) {
-        // 止まっている時は、高い壁(Start)を超えないと動き出さない
+      if (!isMoving) {
         if (val > onThreshold) {
-          video.play();
-          isPlaying = true;
+          // 動かし始め：速度を1.0に戻す
+          if(video.paused) video.play(); // 念の為
+          video.playbackRate = 1.0;
+          isMoving = true;
+        } else {
+          // 停止中：速度を0にする
+          video.playbackRate = 0;
         }
       } else {
-        // 動いている時は、低い壁(Stop)を下回るまで止まらない
         if (val < offThreshold) {
-          video.pause();
-          isPlaying = false;
+          // 止まる時：速度を0にする
+          video.playbackRate = 0;
+          isMoving = false;
+        } else {
+          // 動いている最中：速度1.0維持
+          if(video.playbackRate === 0) video.playbackRate = 1.0;
         }
       }
     } 
     else if (mode === 'reverse') {
-      // リバース（止まると再生）の場合のロジック
-      // 動かしていない(valが低い)と再生
-      if (!isPlaying) {
-        if (val < offThreshold) {
-          video.play();
-          isPlaying = true;
+      // リバースモード
+      if (!isMoving) { // 再生中状態
+        if (val < offThreshold) { // まだ動いてない
+           if(video.paused) video.play();
+           video.playbackRate = 1.0;
+           isMoving = true; // 変数名はisMovingだが実態はisActive的な意味
         }
       } else {
-        // 動かし始める(Start)と停止
-        if (val > onThreshold) {
-          video.pause();
-          isPlaying = false;
+        if (val > onThreshold) { // 動いた！止まれ！
+           video.playbackRate = 0;
+           isMoving = false;
         }
       }
     }
   }
 
   document.getElementById('file-input').addEventListener('change', function(e){
-    if(e.target.files[0]) video.src = URL.createObjectURL(e.target.files[0]);
+    if(e.target.files[0]) {
+      video.src = URL.createObjectURL(e.target.files[0]);
+      // ファイル読み込み直後も強制再生してすぐ速度0にする（アイコン出さないため）
+      video.play().then(() => {
+        video.playbackRate = 0; 
+      });
+    }
   });
   function skip(sec) { if(video.src) video.currentTime += sec; }
 </script>
