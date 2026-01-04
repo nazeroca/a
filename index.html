@@ -2,46 +2,154 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>M5 BLE AV Player</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>M5 BLE Player Full</title>
 <style>
-  body { background-color: #000; color: #eee; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-  #container { flex: 1; display: flex; flex-direction: column; padding: 10px; gap: 8px; }
+  /* リセット & 基本設定 */
+  * { box-sizing: border-box; touch-action: manipulation; } /* ダブルタップ拡大防止 */
   
-  /* BLE接続ボタン */
+  body {
+    background-color: #000;
+    color: #eee;
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    /* dvh: アドレスバーの有無に関わらず、表示領域きっちり100%にする魔法の単位 */
+    height: 100dvh; 
+    width: 100vw;
+    overflow: hidden; /* スクロール禁止 */
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* メインコンテナ */
+  #container {
+    flex: 1; /* 画面いっぱいを使う */
+    display: flex;
+    flex-direction: column;
+    padding: 2vw; /* 画面幅の2%の余白 */
+    gap: 1vh;     /* 要素間隔は画面高さの1% */
+  }
+
+  /* 1. 上部エリア（接続ボタン & ファイル選択） */
+  #top-area {
+    flex: 0 0 auto; /* 高さは中身なり */
+    display: flex;
+    gap: 2vw;
+  }
+
   #ble-connect {
-    background: #ff5722; color: white; padding: 15px; 
-    border-radius: 8px; font-weight: bold; text-align: center; 
-    cursor: pointer; margin-bottom: 5px;
+    flex: 1;
+    background: #ff5722;
+    color: white;
+    padding: 1.5vh 0; /* 高さは画面比率で */
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+    font-size: 4vw; /* 文字サイズも画面幅連動 */
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
   }
   .connected-btn { background: #4caf50 !important; pointer-events: none; }
 
-  #video-area { flex: 2; background: #111; border: 1px solid #333; border-radius: 8px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;}
-  video { width: 100%; height: 100%; object-fit: contain; }
-  
-  #controls { flex: 1.5; background: #1a1a1a; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
-  
-  .btn-file { background: #007bff; color: white; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; display: block; cursor: pointer; }
+  .btn-file {
+    flex: 1;
+    background: #007bff;
+    color: white;
+    padding: 1.5vh 0;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+    font-size: 3.5vw;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
   input[type="file"] { display: none; }
-  
-  .skip-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .btn-skip { background: #333; color: #fff; border: 1px solid #555; border-radius: 6px; padding: 10px 0; cursor: pointer; }
+
+  /* 2. 動画エリア（残りのスペースを全部使う） */
+  #video-area {
+    flex: 1 1 auto; /* 伸び縮みする */
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0; /* Flexboxの子要素でスクロールさせないための必須設定 */
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* アスペクト比維持 */
+  }
+
+  /* 3. 操作エリア（下部に固定的な高さ） */
+  #controls {
+    flex: 0 0 auto; /* 高さは中身なり（伸びない） */
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 2vh 2vw;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5vh;
+  }
+
+  /* スキップボタン群 */
+  .skip-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); /* 6個横並び */
+    gap: 1vw;
+  }
+  .btn-skip {
+    background: #333; color: #fff;
+    border: 1px solid #555; border-radius: 4px;
+    padding: 1vh 0;
+    font-size: 3vw;
+    cursor: pointer;
+  }
   .btn-skip:active { background: #555; }
-  
-  select, input[type="range"] { width: 100%; padding: 8px; background: #333; color: white; border: none; border-radius: 5px; box-sizing: border-box; }
-  
-  .bar-bg { width: 100%; height: 10px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 5px; }
+
+  /* モード選択 */
+  select {
+    width: 100%;
+    padding: 1vh;
+    background: #333; color: white; border: none; border-radius: 5px;
+    font-size: 4vw;
+    height: 5vh;
+  }
+
+  /* メーター */
+  .bar-bg {
+    width: 100%; height: 1.5vh;
+    background: #333; border-radius: 1vh;
+    overflow: hidden;
+  }
   #bar { height: 100%; width: 0%; background: linear-gradient(90deg, #0f0, #ff0, #f00); transition: width 0.1s; }
+
+  /* スライダーエリア */
+  .sliders {
+    display: flex; gap: 2vw;
+  }
+  .slider-group { flex: 1; }
+  .row { display: flex; justify-content: space-between; font-size: 3vw; color: #aaa; margin-bottom: 0.5vh;}
   
-  .row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+  input[type="range"] {
+    width: 100%;
+    height: 3vh; /* タッチしやすい太さ */
+    margin: 0;
+  }
+
 </style>
 </head>
 <body>
 
 <div id="container">
-  <div id="ble-connect" onclick="connectBLE()">📡 CONNECT M5 (押してペアリング)</div>
-
-  <label class="btn-file">📂 動画ファイルを選択<input type="file" id="file-input" accept="video/*"></label>
+  <div id="top-area">
+    <div id="ble-connect" onclick="connectBLE()">📡 CONNECT</div>
+    <label class="btn-file">📂 動画選択<input type="file" id="file-input" accept="video/*"></label>
+  </div>
 
   <div id="video-area">
     <video id="v" playsinline webkit-playsinline controls loop></video>
@@ -52,27 +160,28 @@
       <button class="btn-skip" onclick="skip(-300)">-5m</button>
       <button class="btn-skip" onclick="skip(-60)">-1m</button>
       <button class="btn-skip" onclick="skip(-10)">-10s</button>
-      <button class="btn-skip" onclick="skip(300)">+5m</button>
-      <button class="btn-skip" onclick="skip(60)">+1m</button>
       <button class="btn-skip" onclick="skip(10)">+10s</button>
+      <button class="btn-skip" onclick="skip(60)">+1m</button>
+      <button class="btn-skip" onclick="skip(300)">+5m</button>
     </div>
 
-    <div style="margin-top:5px;">
-      <select id="mode">
-        <option value="motion">🏃 Motion Play (動くと再生)</option>
-        <option value="reverse">🧘 Reverse Gate (止まると再生)</option>
-        <option value="none">🛑 Monitor Only</option>
-      </select>
-    </div>
+    <select id="mode">
+      <option value="motion">🏃 Motion Play (動くと再生)</option>
+      <option value="reverse">🧘 Reverse Gate (止まると再生)</option>
+      <option value="none">🛑 Monitor Only</option>
+    </select>
 
-    <div><div class="bar-bg"><div id="bar"></div></div></div>
+    <div class="bar-bg"><div id="bar"></div></div>
 
-    <div style="border-top:1px solid #333; padding-top:5px;">
-      <div class="row"><small>感度</small><small id="s-val">2.0</small></div>
-      <input type="range" id="sens" min="0.5" max="5.0" step="0.1" value="2.0">
-      
-      <div class="row"><small>減衰</small><small id="d-val">0.9</small></div>
-      <input type="range" id="decay" min="0.5" max="0.99" step="0.01" value="0.9">
+    <div class="sliders">
+      <div class="slider-group">
+        <div class="row"><span>感度</span><span id="s-val">2.0</span></div>
+        <input type="range" id="sens" min="0.5" max="5.0" step="0.1" value="2.0">
+      </div>
+      <div class="slider-group">
+        <div class="row"><span>余韻</span><span id="d-val">0.9</span></div>
+        <input type="range" id="decay" min="0.5" max="0.99" step="0.01" value="0.9">
+      </div>
     </div>
   </div>
 </div>
@@ -84,15 +193,23 @@
   
   let bluetoothDevice;
   let characteristic;
-  
-  const video = document.getElementById('v');
-  const bar = document.getElementById('bar');
   const btnConnect = document.getElementById('ble-connect');
   
-  // 接続処理
+  // ▼ 全画面化ロジック ▼
+  function goFullScreen() {
+    const doc = document.documentElement;
+    if (doc.requestFullscreen) { doc.requestFullscreen(); }
+    else if (doc.webkitRequestFullscreen) { doc.webkitRequestFullscreen(); } // Chrome/Safari old
+  }
+
   async function connectBLE() {
+    // 1. まず全画面化を試みる (ユーザーアクション直後なら成功率高い)
+    goFullScreen();
+
     try {
-      btnConnect.innerText = "Searching...";
+      btnConnect.innerText = "🔍...";
+      
+      // 2. Bluetoothデバイスを探す
       bluetoothDevice = await navigator.bluetooth.requestDevice({
         filters: [{ name: 'M5-AV-Controller' }],
         optionalServices: [SERVICE_UUID]
@@ -105,33 +222,39 @@
       await characteristic.startNotifications();
       characteristic.addEventListener('characteristicvaluechanged', handleData);
       
-      btnConnect.innerText = "✅ CONNECTED";
+      btnConnect.innerText = "✅ OK";
       btnConnect.classList.add('connected-btn');
       
       bluetoothDevice.addEventListener('gattserverdisconnected', () => {
-        btnConnect.innerText = "❌ Disconnected (Tap to Retry)";
+        btnConnect.innerText = "❌ 切断";
         btnConnect.classList.remove('connected-btn');
       });
 
     } catch (error) {
       console.log(error);
-      btnConnect.innerText = "Connection Failed / Cancelled";
+      btnConnect.innerText = "失敗/取消";
+      // 失敗しても再挑戦できるように戻す
+      setTimeout(() => { btnConnect.innerText = "📡 CONNECT"; }, 2000);
     }
   }
 
-  // データ受信処理
-  let smoothVal = 0;
+  // --- 以下、プレイヤー制御ロジック (変更なし) ---
+  const video = document.getElementById('v');
+  const bar = document.getElementById('bar');
+  const modeSel = document.getElementById('mode');
+  const sensRange = document.getElementById('sens');
+  const decayRange = document.getElementById('decay');
   
+  let smoothVal = 0;
+
   function handleData(event) {
     const value = new TextDecoder().decode(event.target.value);
     const rawG = parseFloat(value);
-    
-    // 以前のロジックと同じ
     let motion = Math.abs(rawG - 1.0);
     if(motion < 0.15) motion = 0; 
 
-    const decay = parseFloat(document.getElementById('decay').value);
-    const sens = parseFloat(document.getElementById('sens').value);
+    const decay = parseFloat(decayRange.value);
+    const sens = parseFloat(sensRange.value);
     smoothVal = (smoothVal * decay) + (motion * (1.0 - decay) * sens * 10);
 
     let per = Math.min(smoothVal * 20, 100);
@@ -143,8 +266,6 @@
     document.getElementById('d-val').innerText = decay;
   }
   
-  // 動画制御（以前と同じ）
-  const modeSel = document.getElementById('mode');
   function controlVideo(val) {
     const mode = modeSel.value;
     const threshold = 0.5; 
@@ -157,7 +278,6 @@
     }
   }
 
-  // ファイル読込・スキップ
   document.getElementById('file-input').addEventListener('change', function(e){
     if(e.target.files[0]) video.src = URL.createObjectURL(e.target.files[0]);
   });
